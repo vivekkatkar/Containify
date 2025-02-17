@@ -12,9 +12,7 @@ function App() {
       <Routes>
         <Route path="/" element = {<Home/>}/>
         <Route path="/DockerCompose" element={<DockerComposePage />} />
-        <Route path="/DockerFile" element={<ContentProvider>
-            <DockerFilePage />
-          </ContentProvider>} />
+        <Route path="/DockerFile" element={<ContentProvider> <DockerFilePage /> </ContentProvider>} />
       </Routes>
     </Router>
   )

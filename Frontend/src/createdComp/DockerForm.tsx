@@ -3,16 +3,16 @@ import React, { useContext, useState } from "react";
 import { ContentContext } from "../context/contentContext";
 
 interface FormData {
+  repoUrl : string;
   baseImage: string;
-  workDir: string;
-  dependencies: string;
+  // workDir: string;
+  // dependencies: string;
   updatePackage: string;
-  copyFiles: string;
+  // copyFiles: string;
   envVariables: string[];
   ports: string;
   startupCommand: string;
 }
-
 
 const DockerForm = () => {
   const context = useContext(ContentContext);
@@ -24,11 +24,12 @@ const DockerForm = () => {
   const { setContent } = context;
 
   const [formData, setFormData] = useState<FormData>({
+    repoUrl : "",
     baseImage: "",
-    workDir: "",
-    dependencies: "",
+    // workDir: "",
+    // dependencies: "",
     updatePackage: "",
-    copyFiles: "",
+    // copyFiles: "",
     envVariables: [],
     ports: "",
     startupCommand: ""
@@ -52,11 +53,22 @@ const DockerForm = () => {
     e.preventDefault();
     // console.log("Dockerfile Config:", formData);
     
-    const result = await axios.get("http://localhost:3000/get-text");
-    const data = await result.data;
+    // const result = await axios.get("http://localhost:3000/get-text");
+    // const data = await result.data;
     // console.log(data);
+    // setContent(data);
 
-    setContent(data);
+    const result = await axios.post("http://localhost:4000/generate-dockerfile", {
+      repoUrl: formData.repoUrl,
+      baseImage: formData.baseImage,
+      envVariables: formData.envVariables, 
+      ports: formData.ports,
+      startupCommand: formData.startupCommand
+    });
+
+    const data = await result.data;
+    console.log(data);
+    setContent(data.id);
   };
 
   return (
@@ -65,29 +77,34 @@ const DockerForm = () => {
         <h2 className="mb-6 text-center text-2xl font-bold text-white">Dockerfile Configuration</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label className="mb-1 block text-sm font-medium text-gray-200">Repository URL</label>
+            <input type="text" name="repoUrl" placeholder="e.g., https://github.com" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onChange={handleChange} required />
+          </div>
+
+          <div>
             <label className="mb-1 block text-sm font-medium text-gray-200">Base Image</label>
             <input type="text" name="baseImage" placeholder="e.g., node:18, python:3.9" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onChange={handleChange} required />
           </div>
 
-          <div>
+          {/* <div>
             <label className="mb-1 block text-sm font-medium text-gray-200">Working Directory</label>
             <input type="text" name="workDir" placeholder="e.g., /app" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onChange={handleChange} required />
-          </div>
+          </div> */}
 
-          <div>
+          {/* <div>
             <label className="mb-1 block text-sm font-medium text-gray-200">Dependencies Installation</label>
             <textarea name="dependencies" placeholder="e.g., npm install" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onChange={handleChange} required></textarea>
-          </div>
+          </div> */}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-200">Update Package Manager</label>
             <input type="text" name="updatePackage" placeholder="e.g., apt-get update, apk add" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onChange={handleChange} required />
           </div>
 
-          <div>
+          {/* <div>
             <label className="mb-1 block text-sm font-medium text-gray-200">Copying Files</label>
             <input name="copyFiles" placeholder="e.g., COPY . /app, ADD url /destination" className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onChange={handleChange} required></input>
-          </div>
+          </div> */}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-200">Environment Variables</label>
