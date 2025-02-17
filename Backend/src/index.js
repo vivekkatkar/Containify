@@ -60,16 +60,16 @@ app.post("/generate-dockerfile", async (req, res) => {
     fs.writeFileSync(path.join(projectPath, "Dockerfile"), dockerfileContent);
     fs.writeFileSync(path.join(projectPath, "metadata.json"), JSON.stringify({ ports }));
 
-    fs.readdirSync(projectPath).forEach(file => {
-      if (file !== "Dockerfile" && file !== "metadata.json") {
-        const filePath = path.join(projectPath, file);
-        if (fs.lstatSync(filePath).isDirectory()) {
-          rimraf.sync(filePath); 
-        } else {
-          fs.unlinkSync(filePath); 
-        }
-      }
-    });
+    // fs.readdirSync(projectPath).forEach(file => {
+    //   if (file !== "Dockerfile" && file !== "metadata.json") {
+    //     const filePath = path.join(projectPath, file);
+    //     if (fs.lstatSync(filePath).isDirectory()) {
+    //       rimraf.sync(filePath); 
+    //     } else {
+    //       fs.unlinkSync(filePath); 
+    //     }
+    //   }
+    // });
 
     res.send({ success: true, id: uniqueId, message: "Dockerfile generated!" });
   } catch (error) {
