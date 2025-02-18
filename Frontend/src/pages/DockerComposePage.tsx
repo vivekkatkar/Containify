@@ -7,7 +7,7 @@ export function DockerComposePage() {
     <div className="p-5 flex flex-col min-h-screen items-center justify-center bg-[#0a1228]">
     <DockerCompose/>
     <br />
-    <TerminalDemo/>
+    {/* <TerminalDemo/> */}
   </div>
   )
 }

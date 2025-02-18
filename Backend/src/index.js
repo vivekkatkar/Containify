@@ -6,6 +6,8 @@ const { v4: uuidv4 } = require("uuid");
 const simpleGit = require("simple-git");
 const path = require("path");
 const rimraf = require("rimraf"); 
+const {storeDockerFile, getDockerFiles} = require("./db.js")
+
 
 const app = express();
 const git = simpleGit().env({ GIT_ASKPASS: "echo" });
@@ -22,7 +24,7 @@ app.use(cors({ origin: "*" }));
 
 app.post("/generate-dockerfile", async (req, res) => {
   try {
-    const { repoUrl, baseImage, envVariables, ports, startupCommand } = req.body;
+    const { serviceName, repoUrl, baseImage, envVariables, ports, startupCommand } = req.body;
 
     if (!repoUrl) {
       return res.status(400).json({ success: false, message: "Repository URL is required" });
@@ -70,8 +72,9 @@ app.post("/generate-dockerfile", async (req, res) => {
     //     }
     //   }
     // });
-
-    res.send({ success: true, id: uniqueId, message: "Dockerfile generated!" });
+    
+    await storeDockerFile("vivek", serviceName, ports, uniqueId);
+    res.send({ success: true, id: uniqueId, message: "Dockerfile generated!", content : dockerfileContent });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error generating Dockerfile" });
@@ -120,6 +123,31 @@ app.post("/run-container", async (req, res) => {
     res.status(500).json({ success: false, message: "Error running container" });
   }
 });
+
+app.post("/get-services", async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ success: false, message: "Username is required" });
+    }
+
+    const services = await getDockerFiles(username);
+
+    res.json({ success: true, services });
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    res.status(500).json({ success: false, message: "Error fetching services" });
+  }
+});
+
+
+
+
+
+
+
+
 
 app.listen(4000, () => {
   console.log(`App is running on port 4000`);

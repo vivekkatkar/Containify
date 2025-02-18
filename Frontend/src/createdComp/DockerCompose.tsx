@@ -1,379 +1,191 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 
-const DockerCompose = () => {
-    const [content, setContent] = useState("");
-  const [formData, setFormData] = useState({
-    version: "",
-    services: [
-      {
-        serviceName: "",
-        image: "",
-        buildContext: "",
-        dockerfile: "",
-        containerName: "",
-        command: "",
-        workingDir: "",
-        volumes: "",
-        ports: "",
-        environment: "",
-        restartPolicy: "",
-        dependsOn: "",
-        healthCheck: "",
-        healthCheckInterval: "",
-        healthCheckTimeout: "",
-        healthCheckRetries: "",
-      },
-    ],
-    networks: "",
-    volumes: "",
-    logging: "",
-    secrets: "",
-    extraHosts: "",
-  });
+interface Service {
+  service_name: string;
+  ports: string;
+  unique_id: string;
+}
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index?: number) => {
-        if (index !== undefined) {
-        const updatedServices = [...formData.services];
-        const { name, value } = e.target;
-    
-        // Type assertion here
-        updatedServices[index][name as keyof typeof updatedServices[0]] = value;
-        setFormData({ ...formData, services: updatedServices });
-        } else {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        }
-    };
-  
+interface SelectedService {
+  folderId: string;
+  port: number;
+  env: string[];
+  depends_on?: string[];
+}
 
-  const addService = () => {
-    setFormData({
-      ...formData,
-      services: [
-        ...formData.services,
-        {
-          serviceName: "",
-          image: "",
-          buildContext: "",
-          dockerfile: "",
-          containerName: "",
-          command: "",
-          workingDir: "",
-          volumes: "",
-          ports: "",
-          environment: "",
-          restartPolicy: "",
-          dependsOn: "",
-          healthCheck: "",
-          healthCheckInterval: "",
-          healthCheckTimeout: "",
-          healthCheckRetries: "",
-        },
-      ],
+interface PredefinedServiceConfig {
+  image: string;
+  port: number;
+  env: string[];
+}
+
+const predefinedServices = [
+  { name: "MongoDB", image: "mongo", port: 27017 },
+  { name: "MySQL", image: "mysql", port: 3306 },
+];
+
+const DockerCompose: React.FC = () => {
+  const [projectName, setProjectName] = useState("");
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [selectedServices, setSelectedServices] = useState<Record<string, SelectedService>>({});
+  const [selectedPredefined, setSelectedPredefined] = useState<Record<string, PredefinedServiceConfig>>({});
+
+  useEffect(() => {
+    axios.post("http://localhost:4000/get-services", { username: "vivek" }).then((response) => {
+      if (response.data.success) {
+        setAvailableServices(response.data.services);
+      }
     });
+  }, []);
+
+  const handleServiceSelection = (service: Service) => {
+    setSelectedServices((prev) => ({
+      ...prev,
+      [service.service_name]: {
+        folderId: service.unique_id,
+        port: Number(service.ports),
+        env: [],
+        depends_on: [],
+      },
+    }));
   };
 
-   async function handleSubmit (e: React.FormEvent) {
-      e.preventDefault();
-      console.log("Dockerfile Config:", formData);
-      const response : any = await fetch ("", {
-  
-      })
-      const data = await response.data;
-      setContent (data);
-    };
+  const handlePredefinedSelection = (serviceName: string) => {
+    const service = predefinedServices.find((s) => s.name === serviceName);
+    if (!service) return;
+    setSelectedPredefined((prev) => ({
+      ...prev,
+      [serviceName]: { image: service.image, port: service.port, env: [] },
+    }));
+  };
+
+  const handleDependsOnChange = (serviceName: string, dependency: string) => {
+    setSelectedServices((prev) => ({
+      ...prev,
+      [serviceName]: {
+        ...prev[serviceName],
+        depends_on: [...(prev[serviceName].depends_on || []), dependency],
+      },
+    }));
+  };
+
+  const handleEnvChange = (serviceName: string, index: number, value: string, isPredefined: boolean) => {
+    if (isPredefined) {
+      setSelectedPredefined((prev) => {
+        const updatedEnvs = [...prev[serviceName].env];
+        updatedEnvs[index] = value;
+        return { ...prev, [serviceName]: { ...prev[serviceName], env: updatedEnvs } };
+      });
+    } else {
+      setSelectedServices((prev) => {
+        const updatedEnvs = [...prev[serviceName].env];
+        updatedEnvs[index] = value;
+        return { ...prev, [serviceName]: { ...prev[serviceName], env: updatedEnvs } };
+      });
+    }
+  };
+
+  const addEnvVariable = (serviceName: string, isPredefined: boolean) => {
+    if (isPredefined) {
+      setSelectedPredefined((prev) => ({
+        ...prev,
+        [serviceName]: { ...prev[serviceName], env: [...prev[serviceName].env, ""] },
+      }));
+    } else {
+      setSelectedServices((prev) => ({
+        ...prev,
+        [serviceName]: { ...prev[serviceName], env: [...prev[serviceName].env, ""] },
+      }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    const services = { ...selectedServices, ...selectedPredefined };
+    console.log({ project_name: projectName, services });
+
+    // await axios.post("http://localhost:4000/create-compose", { project_name: projectName, services });
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-transparent">
-      <div className="w-full max-w-md rounded-lg bg-transparent p-6 pl-8 pr-8 shadow-lg backdrop-blur-md border border-border">
-        <h2 className="mb-6 text-center text-2xl font-bold text-white">Docker Compose Configuration</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Version */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-200">Version</label>
+    <div className="container p-6 max-w-3xl mx-auto bg-white shadow-md rounded-lg">
+      <h2 className="text-2xl font-bold mb-4">Create Docker Compose File</h2>
+
+      <input
+        type="text"
+        value={projectName}
+        onChange={(e) => setProjectName(e.target.value)}
+        className="w-full p-2 border rounded mb-4"
+        placeholder="Enter project name"
+      />
+
+      <h3 className="text-lg font-semibold mt-4 mb-2">Select Your Services</h3>
+      {availableServices.map((service) => (
+        <div key={service.unique_id} className="flex items-center space-x-4 mb-2">
+          <input type="checkbox" onChange={() => handleServiceSelection(service)} />
+          <label>{service.service_name} (Port: {service.ports})</label>
+        </div>
+      ))}
+
+      {Object.keys(selectedServices).map((serviceName) => (
+        <div key={serviceName} className="mb-4">
+          <h4 className="font-semibold">{serviceName} Environment Variables:</h4>
+          {selectedServices[serviceName].env.map((env, index) => (
             <input
+              key={index}
               type="text"
-              name="version"
-              placeholder="e.g., 3.8"
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              onChange={handleChange}
-              required
+              value={env}
+              onChange={(e) => handleEnvChange(serviceName, index, e.target.value, false)}
+              className="p-2 border rounded w-full mb-2"
+              placeholder="KEY=VALUE"
             />
-          </div>
-
-          {/* Services Section */}
-          {formData.services.map((service, index) => (
-            <div key={index} className="space-y-4">
-              <h3 className="text-xl font-semibold text-white">Service {index + 1}</h3>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Service Name</label>
-                <input
-                  type="text"
-                  name="serviceName"
-                  value={service.serviceName}
-                  placeholder="e.g., backend"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                  required
-                />
-              </div>
-
-              {/* Image or Build */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Image</label>
-                <input
-                  type="text"
-                  name="image"
-                  value={service.image}
-                  placeholder="e.g., nginx:latest"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-                <label className="mb-1 block text-sm font-medium text-gray-200">OR Build Context</label>
-                <input
-                  type="text"
-                  name="buildContext"
-                  value={service.buildContext}
-                  placeholder="e.g., ./backend"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-                <label className="mb-1 block text-sm font-medium text-gray-200">Dockerfile</label>
-                <input
-                  type="text"
-                  name="dockerfile"
-                  value={service.dockerfile}
-                  placeholder="e.g., Dockerfile"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              {/* Other fields */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Container Name</label>
-                <input
-                  type="text"
-                  name="containerName"
-                  value={service.containerName}
-                  placeholder="Optional"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Command</label>
-                <input
-                  type="text"
-                  name="command"
-                  value={service.command}
-                  placeholder="e.g., npm start"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Working Directory</label>
-                <input
-                  type="text"
-                  name="workingDir"
-                  value={service.workingDir}
-                  placeholder="Optional"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Volumes</label>
-                <input
-                  type="text"
-                  name="volumes"
-                  value={service.volumes}
-                  placeholder="e.g., ./app:/usr/src/app"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Ports</label>
-                <input
-                  type="text"
-                  name="ports"
-                  value={service.ports}
-                  placeholder="e.g., 8080:80"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Environment Variables</label>
-                <input
-                  type="text"
-                  name="environment"
-                  value={service.environment}
-                  placeholder="e.g., NODE_ENV=production"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Restart Policy</label>
-                <input
-                  type="text"
-                  name="restartPolicy"
-                  value={service.restartPolicy}
-                  placeholder="e.g., always"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Depends On</label>
-                <input
-                  type="text"
-                  name="dependsOn"
-                  value={service.dependsOn}
-                  placeholder="e.g., backend, database"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-              </div>
-
-              {/* Health Check */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-200">Health Check Command</label>
-                <input
-                  type="text"
-                  name="healthCheck"
-                  value={service.healthCheck}
-                  placeholder="e.g., CMD curl -f http://localhost"
-                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  onChange={(e) => handleChange(e, index)}
-                />
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-200">Interval</label>
-                    <input
-                      type="text"
-                      name="healthCheckInterval"
-                      value={service.healthCheckInterval}
-                      placeholder="e.g., 30s"
-                      className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      onChange={(e) => handleChange(e, index)}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-200">Timeout</label>
-                    <input
-                      type="text"
-                      name="healthCheckTimeout"
-                      value={service.healthCheckTimeout}
-                      placeholder="e.g., 5s"
-                      className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      onChange={(e) => handleChange(e, index)}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-200">Retries</label>
-                    <input
-                      type="text"
-                      name="healthCheckRetries"
-                      value={service.healthCheckRetries}
-                      placeholder="e.g., 3"
-                      className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      onChange={(e) => handleChange(e, index)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
           ))}
+          <button onClick={() => addEnvVariable(serviceName, false)} className="text-blue-500">+ Add Variable</button>
 
-          {/* Add New Service Button */}
-          <button
-            type="button"
-            onClick={addService}
-            className="w-full rounded-lg bg-green-500 px-4 py-2 text-white transition hover:bg-green-600"
+          <h4 className="font-semibold mt-2">Depends On:</h4>
+          <select
+            onChange={(e) => handleDependsOnChange(serviceName, e.target.value)}
+            className="w-full p-2 border rounded"
           >
-            Add Another Service
-          </button>
+            <option value="">Select a dependency</option>
+            {[
+              ...Object.keys(selectedServices),
+              ...Object.keys(selectedPredefined),
+            ].map((s) =>
+              s !== serviceName ? <option key={s} value={s}>{s}</option> : null
+            )}
+          </select>
+        </div>
+      ))}
 
-          {/* Networks, Volumes, Logging, Secrets, and Extra Hosts */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-200">Networks</label>
-            <input
-              type="text"
-              name="networks"
-              value={formData.networks}
-              placeholder="e.g., my-network"
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              onChange={handleChange}
-            />
+      <h3 className="text-lg font-semibold mt-4 mb-2">Add Predefined Services</h3>
+      <select className="w-full p-2 border rounded" onChange={(e) => handlePredefinedSelection(e.target.value)}>
+        <option value="">Select a service</option>
+        {predefinedServices.map((service) => (
+          <option key={service.name} value={service.name}>{service.name}</option>
+        ))}
+      </select>
+
+      <div className="mt-4">
+        {Object.keys(selectedPredefined).map((serviceName) => (
+          <div key={serviceName} className="mb-4">
+            <h4 className="font-semibold">{serviceName} Environment Variables:</h4>
+            {selectedPredefined[serviceName].env.map((env, index) => (
+              <input
+                key={index}
+                type="text"
+                value={env}
+                onChange={(e) => handleEnvChange(serviceName, index, e.target.value, true)}
+                className="p-2 border rounded w-full mb-2"
+                placeholder="KEY=VALUE"
+              />
+            ))}
+            <button onClick={() => addEnvVariable(serviceName, true)} className="text-blue-500">+ Add Variable</button>
           </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-200">Volumes</label>
-            <input
-              type="text"
-              name="volumes"
-              value={formData.volumes}
-              placeholder="e.g., db_data"
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-200">Logging Driver</label>
-            <input
-              type="text"
-              name="logging"
-              value={formData.logging}
-              placeholder="e.g., json-file"
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-200">Secrets</label>
-            <input
-              type="text"
-              name="secrets"
-              value={formData.secrets}
-              placeholder="e.g., API keys"
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              onChange={handleChange}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-200">Extra Hosts</label>
-            <input
-              type="text"
-              name="extraHosts"
-              value={formData.extraHosts}
-              placeholder="e.g., host.docker.internal:host-gateway"
-              className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              onChange={handleChange}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-blue-500 px-4 py-2 text-white transition hover:bg-blue-600"
-          >
-            Generate Docker Compose File
-          </button>
-        </form>
+        ))}
       </div>
+
+      <button onClick={handleSubmit} className="w-full bg-blue-500 text-white p-2 rounded mt-4">Generate Docker Compose</button>
     </div>
   );
 };
