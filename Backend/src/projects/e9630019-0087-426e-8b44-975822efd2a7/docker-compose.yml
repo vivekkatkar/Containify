@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  backend1:
+    build: ../abc123
+    ports:
+      - '5000:5000'
+    environment:
+      - DB_HOST=mongodb
+    depends_on: []
+  backend2:
+    build: ../def456
+    ports:
+      - '5001:5001'
+    environment:
+      - DB_HOST=mongodb
+    depends_on: []
+  frontend:
+    build: ../ghi789
+    ports:
+      - '3000:3000'
+    environment: []
+    depends_on:
+      - backend1
+      - backend2
+  mongodb:
+    image: mongo
+    ports:
+      - '27017:27017'
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secret

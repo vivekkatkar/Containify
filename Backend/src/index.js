@@ -7,7 +7,7 @@ const simpleGit = require("simple-git");
 const path = require("path");
 const rimraf = require("rimraf"); 
 const {storeDockerFile, getDockerFiles} = require("./db.js")
-
+const yaml = require("js-yaml");
 
 const app = express();
 const git = simpleGit().env({ GIT_ASKPASS: "echo" });
@@ -142,8 +142,59 @@ app.post("/get-services", async (req, res) => {
 });
 
 
+app.post("/create-compose", (req, res) => {
+  try{
+    const { project_name, services } = req.body;
+    if (!services || Object.keys(services).length === 0) {
+        return res.status(400).json({ success: false, message: "No services provided" });
+    }
 
+    const projectId = uuidv4();
+    const projectPath = path.join(__dirname, "projects", projectId);
+    fs.mkdirSync(projectPath, { recursive: true });
 
+    let composeData = {
+        version: "3.8",
+        services: {}
+    };
+
+    for (const [serviceName, serviceConfig] of Object.entries(services)) {
+      let serviceDefinition = {};
+
+        if (serviceConfig.folderId) {
+            // User created services
+            serviceDefinition = {
+                build: `../../${serviceConfig.folderId}`, 
+                ports: serviceConfig.port ? [`${serviceConfig.port}:${serviceConfig.port}`] : [],
+                environment: serviceConfig.env?.filter(Boolean) || [],
+                depends_on: serviceConfig.depends_on?.filter(Boolean) || []
+            };
+        } else if (serviceConfig.image) {
+            // Predefined services
+            serviceDefinition = {
+                image: serviceConfig.image,
+                ports: serviceConfig.port ? [`${serviceConfig.port}:${serviceConfig.port}`] : [],
+                environment: serviceConfig.env?.filter(Boolean) || []
+            };
+        } else {
+            return res.status(400).json({ success: false, message: `Invalid service configuration for ${serviceName}` });
+        }
+
+          composeData.services[serviceName] = serviceDefinition;
+      }
+
+      const yamlData = yaml.dump(composeData);
+      fs.writeFileSync(path.join(projectPath, "docker-compose.yml"), yamlData);
+
+      fs.writeFileSync(path.join(projectPath, "services.json"), JSON.stringify(services, null, 2));
+
+      res.json({ success: true, projectId, content : yamlData });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
 
 
 

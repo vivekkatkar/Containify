@@ -1,0 +1,32 @@
+{
+  "backend1": {
+    "folderId": "abc123",
+    "port": 5000,
+    "env": [
+      "DB_HOST=mongodb"
+    ]
+  },
+  "backend2": {
+    "folderId": "def456",
+    "port": 5001,
+    "env": [
+      "DB_HOST=mongodb"
+    ]
+  },
+  "frontend": {
+    "folderId": "ghi789",
+    "port": 3000,
+    "depends_on": [
+      "backend1",
+      "backend2"
+    ]
+  },
+  "mongodb": {
+    "image": "mongo",
+    "port": 27017,
+    "env": [
+      "MONGO_INITDB_ROOT_USERNAME=admin",
+      "MONGO_INITDB_ROOT_PASSWORD=secret"
+    ]
+  }
+}
